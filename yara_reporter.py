@@ -2,6 +2,10 @@ import yaratools
 import os
 import sys
 import textwrap
+from datetime import datetime
+from docx import Document
+import warnings
+warnings.filterwarnings("ignore")
 
 def yara_report(rules, results):
     rule_indexes = [i for i, name in enumerate(rules.name) if name in results]
@@ -59,16 +63,33 @@ def main():
 
     rules = yaratools.parse(rawYara)
     print('--------------------------------------')
+    document = Document()
+    document.add_heading('Yara Report', 0)
+    current_time = datetime.now()
+    document.add_paragraph(current_time.strftime('Date: %Y-%m-%d'))
+    document.add_paragraph(current_time.strftime('Time: %H:%M:%S'))
+    document.add_heading('Yara Rules:', 2)
+    for name in rules.name:
+        document.add_paragraph('%s' % name, style='ListBullet')
+    document.add_heading('Files Tested:', 2)
+    for testfile in testfiles:
+        document.add_paragraph('%s' % os.path.basename(testfile), style='ListBullet')
+    document.add_heading('Results:', 2)
+
     for testfile in testfiles:
         results = rules.runYara(testfile)
         report = yara_report(rules, results)
         print(os.path.basename(testfile))
+        document.add_paragraph('%s' % os.path.basename(testfile), style='ListBullet')
         for item in report:
             wrapper = textwrap.TextWrapper(initial_indent='  ', subsequent_indent='  ')
             print(wrapper.fill(item['tag']))
+            document.add_paragraph('%s' % item['tag'], style='ListBullet2')
             wrapper = textwrap.TextWrapper(initial_indent='    ', subsequent_indent='    ')
             print(wrapper.fill('\n'.join(item['tag_report'])))
+            document.add_paragraph('%s' % '\n'.join(item['tag_report']), style='ListBullet3')
         print('--------------------------------------')
+    document.save(current_time.strftime('YARA_report_%Y%m%d_%H%M%S.docx'))
 
 if __name__ == '__main__':
     main()
